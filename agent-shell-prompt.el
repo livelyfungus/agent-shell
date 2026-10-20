@@ -62,28 +62,13 @@ same."
   :group 'agent-shell)
 
 (defcustom agent-shell-prompt-busy-display nil
-  "What to show in place of the shell's live prompt while the agent works.
+  "Display for the busy live prompt in non-chat mode.
+Nil keeps the original text; a string replaces the whole prompt, including
+spacing.  A function receives the original prompt without text properties
+and returns a replacement string or nil.  Buffer text is never changed.
+The face is controlled separately by `agent-shell-prompt-busy'.
 
-A string replaces the whole prompt, so any spacing wanted around it is
-part of it, and an empty string hides the prompt for the duration of the
-turn.  A function is called with the live prompt as a plain string, as
-printed in the buffer, and returns the string to show in its place, or
-nil to keep the prompt's actual text.  When nil (the default), the
-prompt keeps its actual text and only `agent-shell-prompt-busy' applies.
-Any other value, or a function returning neither a string nor nil,
-signals an error.
-
-Display-only: the buffer text, prompt regexps, input history and anything
-typed at the prompt are untouched.  Historical prompts are never
-replaced.  Chat mode draws its own live prompt labels and is unaffected.
-
-For example, with a live prompt reading `Claude> ', setting
-`agent-shell-prompt-busy-display' to `[busy]> ' displays
-`[busy]> ' there instead.
-
-A function sees the prompt as printed, not as currently displayed, so it
-can transform any agent's prompt.  The following displays `Pi...> '
-for a live `Pi> ' prompt:
+For example, to display `Pi...> ' instead of `Pi> ' while busy:
 
   (setopt agent-shell-prompt-busy-display
           (lambda (prompt)
@@ -126,84 +111,30 @@ rather than unsetting them, and reading that as a live prompt would have
 (defvar-local agent-shell--prompt-busy-overlay nil
   "Overlay drawing the live prompt as busy, or nil.")
 
-(defun agent-shell--busy-prompt-wanted-p ()
-  "Return non-nil when the live prompt should look busy.
-
-That is while the shell is busy, chat mode is off (it draws its own live
-prompt), and the buffer ends in a live input prompt."
-  (and shell-maker--busy
-       (not (bound-and-true-p agent-shell-chat-mode))
-       (agent-shell--live-input-prompt-p comint-last-prompt)))
-
 (defun agent-shell--clear-busy-prompt ()
   "Remove the busy appearance, restoring the live prompt as printed."
   (when (overlayp agent-shell--prompt-busy-overlay)
     (delete-overlay agent-shell--prompt-busy-overlay))
   (setq agent-shell--prompt-busy-overlay nil))
 
-(defun agent-shell--prompt-busy-faced-string (string)
-  "Return a copy of STRING propertized to draw with `agent-shell-prompt-busy'.
-
-STRING itself is left unmodified.  An overlay's `display' string does not
-reliably inherit the face of the text it replaces, so the busy face
-travels with the string."
-  (let ((display (copy-sequence string)))
-    (add-face-text-property 0 (length display) 'agent-shell-prompt-busy nil display)
-    display))
-
-(defun agent-shell--prompt-busy-text ()
-  "Return the text to show in place of the live prompt, or nil.
-
-Reads `agent-shell-prompt-busy-display': a string is shown in the
-prompt's place, and a function is called with the live prompt as a plain
-string taken from `comint-last-prompt'.  The function's input is the
-prompt as printed in the buffer, free of text properties and of any
-`display' in effect, and its return value must be a string or nil, where
-nil keeps the printed text.  See `agent-shell-prompt-busy-display'."
-  (pcase agent-shell-prompt-busy-display
-    ('nil nil)
-    ((pred stringp) agent-shell-prompt-busy-display)
-    ((pred functionp)
-     (let ((display (funcall agent-shell-prompt-busy-display
-                             (buffer-substring-no-properties
-                              (car comint-last-prompt)
-                              (cdr comint-last-prompt)))))
-       (cond ((null display) nil)
-             ((stringp display) display)
-             (t (error "`agent-shell-prompt-busy-display' function returned %S (expected a string or nil)"
-                       display)))))
-    (_ (error "Invalid `agent-shell-prompt-busy-display' value: %S (expected nil, a string, or a function)"
-              agent-shell-prompt-busy-display))))
-
 (defun agent-shell--refresh-busy-prompt ()
-  "Draw or remove the busy appearance on the live prompt.
-
-Idempotent, and cheap when nothing changed, so lifecycle points (and
-heartbeat start and end) can call it without touching buffer text or its
-modified flag.
-
-For example, with `agent-shell-prompt-busy-display' set to `busy', a
-busy shell's live prompt `Claude> ' displays `busy' while the buffer
-still reads `Claude> ' and point stays in the input area after it."
-  (if (not (agent-shell--busy-prompt-wanted-p))
+  "Update the live prompt's busy overlay without changing buffer text."
+  (if (not (and shell-maker--busy
+                (not (bound-and-true-p agent-shell-chat-mode))
+                (agent-shell--live-input-prompt-p comint-last-prompt)))
       (agent-shell--clear-busy-prompt)
-    (let* ((text (agent-shell--prompt-busy-text))
-           (display (and text (agent-shell--prompt-busy-faced-string text)))
-           (prompt comint-last-prompt)
-           (start (marker-position (car prompt)))
-           (end (marker-position (cdr prompt)))
-           (overlay (if (and (overlayp agent-shell--prompt-busy-overlay)
-                             (overlay-buffer agent-shell--prompt-busy-overlay))
-                        agent-shell--prompt-busy-overlay
-                      (setq agent-shell--prompt-busy-overlay
-                            ;; FRONT-ADVANCE, so output rendered at the
-                            ;; prompt's start (a turn's text lands above the
-                            ;; prompt) pushes the overlay along with the
-                            ;; prompt instead of being absorbed and hidden by
-                            ;; the display string.  Rear stays
-                            ;; non-advancing, so typed input after the prompt
-                            ;; falls outside the overlay.
-                            (make-overlay start end nil t)))))
+    (let* ((start (marker-position (car comint-last-prompt)))
+           (end (marker-position (cdr comint-last-prompt)))
+           (text (if (functionp agent-shell-prompt-busy-display)
+                     (funcall agent-shell-prompt-busy-display
+                              (buffer-substring-no-properties start end))
+                   agent-shell-prompt-busy-display))
+           (display (and text (propertize text 'face 'agent-shell-prompt-busy)))
+           (overlay (or agent-shell--prompt-busy-overlay
+                        (setq agent-shell--prompt-busy-overlay
+                              ;; Follow output inserted above, but exclude
+                              ;; input typed after the prompt.
+                              (make-overlay start end nil t)))))
       (unless (and (= (overlay-start overlay) start)
                    (= (overlay-end overlay) end))
         (move-overlay overlay start end))
@@ -377,10 +308,7 @@ in the transcript above answers nil."
 Goes through `shell-maker--output-filter' so the prompt is fontified and
 bracketed by `comint-last-prompt' exactly as one shell-maker prints
 itself; nothing else sets that up, and `agent-shell--live-input-prompt-p'
-reads it.
-
-Reprinting while busy replaces the live prompt, so the busy appearance
-moves to the new one (see `agent-shell--refresh-busy-prompt')."
+reads it."
   (shell-maker--output-filter (shell-maker--process)
                               (shell-maker-prompt shell-maker--config))
   (agent-shell--refresh-busy-prompt))

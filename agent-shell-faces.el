@@ -161,10 +161,7 @@ Used for command, capability, config option, model and mode names."
 
 (defface agent-shell-prompt-busy
   '((t :inherit agent-shell-prompt))
-  "Face for the live prompt while the agent is working.
-Inherits `agent-shell-prompt', so the prompt looks unchanged unless this
-face is customized.  See `agent-shell-prompt-busy-display' for replacing
-the prompt's text as well."
+  "Face for the busy live prompt in non-chat mode."
   :group 'agent-shell-faces)
 
 (defface agent-shell-input
