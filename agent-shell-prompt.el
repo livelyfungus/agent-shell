@@ -123,8 +123,8 @@ rather than unsetting them, and reading that as a live prompt would have
                 (not (bound-and-true-p agent-shell-chat-mode))
                 (agent-shell--live-input-prompt-p comint-last-prompt)))
       (agent-shell--clear-busy-prompt)
-    (let* ((start (marker-position (car comint-last-prompt)))
-           (end (marker-position (cdr comint-last-prompt)))
+    (let* ((start (car comint-last-prompt))
+           (end (cdr comint-last-prompt))
            (text (if (functionp agent-shell-prompt-busy-display)
                      (funcall agent-shell-prompt-busy-display
                               (buffer-substring-no-properties start end))
@@ -135,13 +135,9 @@ rather than unsetting them, and reading that as a live prompt would have
                               ;; Follow output inserted above, but exclude
                               ;; input typed after the prompt.
                               (make-overlay start end nil t)))))
-      (unless (and (= (overlay-start overlay) start)
-                   (= (overlay-end overlay) end))
-        (move-overlay overlay start end))
-      (unless (eq (overlay-get overlay 'face) 'agent-shell-prompt-busy)
-        (overlay-put overlay 'face 'agent-shell-prompt-busy))
-      (unless (equal (overlay-get overlay 'display) display)
-        (overlay-put overlay 'display display)))))
+      (move-overlay overlay start end)
+      (overlay-put overlay 'face 'agent-shell-prompt-busy)
+      (overlay-put overlay 'display display))))
 
 (defun agent-shell--live-prompt-start ()
   "Return the live input prompt's start marker, or nil when there is none.

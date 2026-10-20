@@ -11059,10 +11059,6 @@ tick, its first busy tick and its ending tick, and on none in between."
   (let ((shell-frames nil)
         (viewport-frames nil))
     (lambda (_heartbeat status)
-      (when (and (buffer-live-p shell-buffer)
-                 (memq status '(started ended)))
-        (with-current-buffer shell-buffer
-          (agent-shell--refresh-busy-prompt)))
       (when-let* (((buffer-live-p shell-buffer))
                   (frames (with-current-buffer shell-buffer
                             (cons (agent-shell--busy-indicator-frame)

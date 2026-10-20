@@ -111,9 +111,7 @@ in progress), the request is immediately rejected with an error."
     ;; Mark busy so requests are queued rather than sent mid-push.
     ;; Cleared on session_push_end via `agent-shell--finish-output'.
     (setq shell-maker--busy t)
-    (when-let* ((buffer (map-elt state :buffer)))
-      (with-current-buffer buffer
-        (agent-shell--refresh-busy-prompt)))
+    (agent-shell--refresh-busy-prompt)
     (when agent-shell-show-busy-indicator
       (agent-shell-heartbeat-start
        :heartbeat (map-elt state :heartbeat)))
