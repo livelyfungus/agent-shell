@@ -161,7 +161,7 @@ Used for command, capability, config option, model and mode names."
 
 (defface agent-shell-prompt-busy
   '((t :inherit agent-shell-prompt))
-  "Face for the busy live prompt in non-chat mode."
+  "Face for the busy shell prompt."
   :group 'agent-shell-faces)
 
 (defface agent-shell-input

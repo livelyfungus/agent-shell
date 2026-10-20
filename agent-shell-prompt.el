@@ -62,20 +62,17 @@ same."
   :group 'agent-shell)
 
 (defcustom agent-shell-prompt-busy-display nil
-  "Display for the busy live prompt in non-chat mode.
-Nil keeps the original text; a string replaces the whole prompt, including
-spacing.  A function receives the original prompt without text properties
-and returns a replacement string or nil.  Buffer text is never changed.
-The face is controlled separately by `agent-shell-prompt-busy'.
+  "Display for the busy prompt in non-chat mode.
+Nil keeps the prompt; a string replaces it.  A function takes the original,
+unpropertized prompt and returns a string or nil.
 
-For example, to display `Pi...> ' instead of `Pi> ' while busy:
+For example, to display \"Pi...> \" instead of \"Pi> \":
 
-  (setopt agent-shell-prompt-busy-display
-          (lambda (prompt)
-            (concat (string-remove-suffix \"> \" prompt) \"...> \")))"
+  (lambda (prompt)
+    (concat (string-remove-suffix \"> \" prompt) \"...> \"))"
   :type '(choice (const :tag "Actual prompt" nil)
                  (string :tag "Replacement string")
-                 (function :tag "Function of the prompt string"))
+                 (function :tag "Function"))
   :group 'agent-shell)
 
 (defun agent-shell--live-input-prompt-p (prompt)
@@ -109,16 +106,16 @@ rather than unsetting them, and reading that as a live prompt would have
 (defvar agent-shell-chat-mode)
 
 (defvar-local agent-shell--prompt-busy-overlay nil
-  "Overlay drawing the live prompt as busy, or nil.")
+  "Busy prompt overlay.")
 
 (defun agent-shell--clear-busy-prompt ()
-  "Remove the busy appearance, restoring the live prompt as printed."
+  "Remove the busy prompt overlay."
   (when (overlayp agent-shell--prompt-busy-overlay)
     (delete-overlay agent-shell--prompt-busy-overlay))
   (setq agent-shell--prompt-busy-overlay nil))
 
 (defun agent-shell--refresh-busy-prompt ()
-  "Update the live prompt's busy overlay without changing buffer text."
+  "Refresh the busy prompt overlay."
   (if (not (and shell-maker--busy
                 (not (bound-and-true-p agent-shell-chat-mode))
                 (agent-shell--live-input-prompt-p comint-last-prompt)))
