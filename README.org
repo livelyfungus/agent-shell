@@ -825,6 +825,26 @@ To disable/hide the persistent prompt, unset the related option:
 
 The viewport's compose buffer is available either way, and submitting from it mid-turn routes the same.
 
+While the agent works, the live prompt itself can also show as busy.  This is display-only: the buffer text, prompt regexps, input history, anything typed at the prompt, and the transcript are unchanged, and only the live prompt is affected.  Chat mode draws its own labels and is left alone.
+
+The face and the displayed text are independent.  The =agent-shell-prompt-busy= face inherits =agent-shell-prompt=, so the prompt looks unchanged until you customize it.  Set =agent-shell-prompt-busy-display= to replace the prompt's text:
+
+#+begin_src emacs-lisp
+(setopt agent-shell-prompt-busy-display "[busy]> ")
+#+end_src
+
+Leave it nil to keep the prompt's own text and change only the face.  The string replaces the whole prompt, spacing included, so keep a trailing space for separation from typed input.  Set it to an empty string to hide the prompt while the agent works.  With =agent-shell-persistent-prompt-enabled= off there is no live prompt to restyle.
+
+A function receives the live prompt as a plain string, as printed in the buffer (not as currently displayed), and returns the string to show instead, or nil to keep the prompt's own text.  That handles agents whose prompts differ:
+
+#+begin_src emacs-lisp
+(setopt agent-shell-prompt-busy-display
+        (lambda (prompt)
+          (concat (string-remove-suffix "> " prompt) "...> ")))
+#+end_src
+
+With a =Pi> = prompt that shows =Pi...> = while the agent works.
+
 *** Steering a running turn
 
 A prompt sent while the agent is working is queued and submitted once the turn ends.  Prompts queued during the same turn are merged into a single prompt, separated by blank lines (set =agent-shell-prompt-queue-merge= to nil to send them one turn each).  Cancelling the turn asks whether to continue with the queued prompts.  Agents that support steering can take it into the turn already running instead, so a wrong direction can be corrected without waiting for it to finish.  Steering is an ACP extension (=_session/steering=) rather than part of the spec, advertised by the agent at initialization: the Claude and Codex packages implement it, other agents keep queueing.
@@ -1217,6 +1237,7 @@ always go to Evil modes if you need to with ~C-z~).
 | agent-shell-pi-environment                    | Environment variables for the Pi client.                                        |
 | agent-shell-prefer-viewport-interaction       | Non-nil makes ‘agent-shell’ prefer viewport interaction over shell interaction. |
 | agent-shell-preferred-agent-config            | Default agent to use for all new shells.                                        |
+| agent-shell-prompt-busy-display               | Text shown in place of the live prompt while the agent works.                   |
 | agent-shell-prompt-busy-frames                | Frames animating the live prompt’s marker while the agent works.                |
 | agent-shell-qoder-acp-command                 | Command and parameters for the Qoder CLI ACP server.                            |
 | agent-shell-qoder-environment                 | Environment variables for the Qoder CLI ACP server.                             |

@@ -40,6 +40,7 @@
 ;;; Code:
 
 (require 'agent-shell-faces)
+(require 'agent-shell-prompt)
 (require 'map)
 (require 'seq)
 (eval-when-compile
@@ -1210,6 +1211,9 @@ fragments rendered with no event, which the live prompt's label would
 otherwise hide."
   (unless agent-shell-chat--labeled
     (setq-local agent-shell-chat--labeled t)
+    ;; Chat mode draws its own live prompt, so drop the shell's busy
+    ;; prompt appearance for as long as it labels the buffer.
+    (agent-shell--refresh-busy-prompt)
     (agent-shell-chat--relabel)
     (setq-local agent-shell-chat--subscription
                 (agent-shell-subscribe-to
@@ -1250,7 +1254,9 @@ otherwise hide."
   (kill-local-variable 'agent-shell-chat--subscription)
   (kill-local-variable 'agent-shell-chat--relabel-timer)
   (kill-local-variable 'agent-shell-chat--live-marker-overlay)
-  (kill-local-variable 'agent-shell-chat--labeled))
+  (kill-local-variable 'agent-shell-chat--labeled)
+  ;; Chat labels are gone, so a busy shell shows its own busy prompt again.
+  (agent-shell--refresh-busy-prompt))
 
 ;;; Mode
 

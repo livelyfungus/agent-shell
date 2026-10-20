@@ -4619,6 +4619,7 @@ For example, shut down ACP client."
   (when (derived-mode-p 'agent-shell-mode)
     (agent-shell--cancel-idle-timer)
     (agent-shell--cancel-stream-render-timer (agent-shell--state))
+    (agent-shell--clear-busy-prompt)
     (agent-shell--emit-event :event 'clean-up)
     (agent-shell--shutdown)
     ;; Kill any open diff buffers associated with tool calls.
@@ -5209,6 +5210,8 @@ variable (see makunbound)"))
       (setq-local end-of-defun-function #'agent-shell--end-of-block)
       (agent-shell--update-header-and-mode-line)
       (add-hook 'kill-buffer-hook #'agent-shell--clean-up nil t)
+      (add-hook 'shell-maker-finish-output-hook
+                #'agent-shell--refresh-busy-prompt nil t)
       (add-hook 'kill-buffer-query-functions
                 #'agent-shell--prompt-queue-confirm-kill-buffer nil t)
       (add-hook 'kill-emacs-query-functions
@@ -11049,13 +11052,22 @@ The handler redraws the shell's header, mode line and live prompt
 marker, and its viewport's header, whichever are visible.  A busy tick
 whose frames match those it last drew redraws nothing, so a static
 indicator (see `agent-shell-busy-indicator-frames' and
-`agent-shell-prompt-busy-frames') costs no redisplay while busy.
+`agent-shell-prompt-busy-frames') costs no redisplay while busy.  The
+first and last ticks also refresh the live prompt's busy appearance.
+See `agent-shell-prompt-busy-display'.
 
 For example, with both set to \"(busy)\", a turn redraws on its starting
 tick, its first busy tick and its ending tick, and on none in between."
   (let ((shell-frames nil)
         (viewport-frames nil))
     (lambda (_heartbeat status)
+      (when (buffer-live-p shell-buffer)
+        ;; Busy start and end refresh the live prompt's busy appearance.
+        ;; Ticks in between leave it alone, so a static appearance costs
+        ;; no work per beat.
+        (when (memq status '(started ended))
+          (with-current-buffer shell-buffer
+            (agent-shell--refresh-busy-prompt))))
       (when-let* (((buffer-live-p shell-buffer))
                   (frames (with-current-buffer shell-buffer
                             (cons (agent-shell--busy-indicator-frame)

@@ -159,6 +159,14 @@ Used for command, capability, config option, model and mode names."
   "Face for the shell prompt."
   :group 'agent-shell-faces)
 
+(defface agent-shell-prompt-busy
+  '((t :inherit agent-shell-prompt))
+  "Face for the live prompt while the agent is working.
+Inherits `agent-shell-prompt', so the prompt looks unchanged unless this
+face is customized.  See `agent-shell-prompt-busy-display' for replacing
+the prompt's text as well."
+  :group 'agent-shell-faces)
+
 (defface agent-shell-input
   '((t :inherit comint-highlight-input))
   "Face for user input."
